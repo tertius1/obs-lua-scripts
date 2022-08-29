@@ -1,0 +1,44 @@
+This plugin will start an external ffmpeg to extract a section of the recorded video and export this as animated gif or
+mp4/webm video snippet.
+
+To use this plugin:
+[LIST=1]
+[*]Download the *.zip from the OBS plugin Extract the downloaded *.zip file and copy create-animated-gif.lua and postprocess_from_obs to th
+[*]Install a standalone ffmpeg from https://ffmpeg.org/download.html if you don't have it already.
+[*]If ffmpeg is not in your OS path: configure the path to ffmpeg in the external script postprocess_from_obs.cmd
+[*]Prepare your recording target, e.g. external app, game, capture device.
+[*]In OBS, create the group that will define the section.
+[*]Move and resize the group, so it designates the section properly.
+[*]In the plugin settings, configure the group as well as the intended gif length, format etc.
+Optional:
+[*]In Setup->Hotkeys, setup the plugin-specific postprocessing hotkey.
+[/LIST]
+
+Workflow:
+Start recording, capture action, wait for postprocessing.
+
+1. In the plugin settings, set "Start Offset" to the time that will elapse between recording start and the action you
+   intend to capture actually takes place. It's probably 1 to 10 seconds if you click "Start Recording"
+   and 0 to 1 second if you use the hotkey.
+2. Start recording by clicking "Start Recording" or by using the recording hotkey.
+3. Start action wthin the capture target.
+4. Recording will stop automatically after the defined "Video Length" plus a few more seconds.
+   Then, postprocessing will run automatically.
+
+Check and adjust generated content:
+
+1. check generated gifs or video
+2. to adjust the generated gif or video, adjust the corresponding settings
+   in the plugin settings and press the "Process Again" button.
+3. repeat until satisfied. The "Process Again" button will always process the video that was last captured.
+
+[LIST=1]
+[*]aaaaaaaa
+[*]bbbbbbbbb
+[*]cccccccc
+[/LIST]
+[LIST]
+[*]xxxxxxxxxxx
+[*]yyyyyyyyyyy
+[*]zzzzzzzzzz
+[/LIST]
