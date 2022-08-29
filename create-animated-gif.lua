@@ -162,9 +162,14 @@ function run_postprocessing()
 
         local size = obs.vec2()
         if info.bounds_type == obs.OBS_BOUNDS_NONE then
-            obs.vec2_mul(size, info.bounds, info.scale)
-            log.debug("run_postprocessing no bounding box; scale=(" .. info.scale.x .. "," .. info.scale.y ..
-                ") * bounds=(" .. info.bounds.x .. "," .. info.bounds.y .. ") => size=(" .. size.x .. "," .. size.y .. ")")
+            local source = obs.obs_sceneitem_get_source(scene_item)
+            local source_size = obs.vec2()
+
+            source_size.x = obs.obs_source_get_width(source)
+            source_size.y = obs.obs_source_get_height(source)
+
+            obs.vec2_mul(size, source_size, info.scale)
+            log.debug("run_postprocessing no bounding box; source_size=(" .. source_size.x .. "," .. source_size.y .. ") * scale=(" .. info.scale.x .. "," .. info.scale.y .. ") => scaled_size=(" .. size.x .. "," .. size.y .. ")")
         else
             size = info.bounds
         end
