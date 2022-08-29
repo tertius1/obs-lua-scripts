@@ -1,4 +1,4 @@
-# Repository of my lua plugin(s) written for OBS - Open Broadcaster Software
+# my lua plugin(s) for OBS - Open Broadcaster Software
 
 1. create-animated-gif.lua
 
