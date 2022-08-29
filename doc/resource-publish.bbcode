@@ -3,13 +3,14 @@ mp4/webm video snippet.
 
 To use this plugin:
 [LIST=1]
-[*]Download the *.zip from the OBS plugin Extract the downloaded *.zip file and copy create-animated-gif.lua and postprocess_from_obs to th
+[*]Download create-animated-gif.lua and postprocess-from-obs.cmd from the linked github download site and save them to the directory you install your *.lua scripts for OBS.
+Currently, only a Windows batch file (postprocess-from-obs.cmd) as ffmpeg wrapper is provided. If you need Linux support, port the postprocess-from-obs.cmd to a bash script, send it to me and I will add it to the repository.
 [*]Install a standalone ffmpeg from https://ffmpeg.org/download.html if you don't have it already.
 [*]If ffmpeg is not in your OS path: configure the path to ffmpeg in the external script postprocess_from_obs.cmd
 [*]Prepare your recording target, e.g. external app, game, capture device.
-[*]In OBS, create the group that will define the section.
+[*]In OBS, create the group that will define the section you want in the postprocessed gif/video.
 [*]Move and resize the group, so it designates the section properly.
-[*]In the plugin settings, configure the group as well as the intended gif length, format etc.
+[*]In the OBS plugin settings, configure the group as well as the intended gif length, format etc.
 Optional:
 [*]In Setup->Hotkeys, setup the plugin-specific postprocessing hotkey.
 [/LIST]
