@@ -544,7 +544,7 @@ function script_defaults(settings)
     local name = obs.obs_source_get_name(source)
     obs.obs_source_release(source)
 
-    local pcmd = script_path() .. "postprocess_from_obs.cmd"
+    local pcmd = script_path() .. "postprocess-from-obs.cmd"
     if not obs.os_file_exists(pcmd) then
         pcmd = ""
     end
@@ -608,7 +608,7 @@ mp4/webm video snippet.
 
 Preparation:
 1. install a standalone ffmpeg from https://ffmpeg.org/download.html if you don't have it already.
-2. If ffmpeg not in OS path: configure the path to ffmpeg in the external script postprocess_from_obs.cmd
+2. If ffmpeg not in OS path: configure the path to ffmpeg in the external script postprocess-from-obs.cmd
 3. Prepare your recording target, e.g. external app, game, capture device.
 4. In OBS, create the group that will define the section.
 5. Move and resize the group, so it designates the section properly.

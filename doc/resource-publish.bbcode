@@ -1,45 +1,68 @@
-This plugin will start an external ffmpeg to extract a section of the recorded video and export this as animated gif or
+This script will start an external ffmpeg to extract a section of the recorded video and export this as animated gif or
 mp4/webm video snippet.
 
-To use this plugin:
+To use this script:
 [LIST=1]
-[*]Download create-animated-gif.lua and postprocess-from-obs.cmd from the linked github download site and save them to the directory you install your *.lua scripts for OBS.
-Currently, only a Windows batch file (postprocess-from-obs.cmd) as ffmpeg wrapper is provided. If you need Linux support, port the postprocess-from-obs.cmd to a bash script, send it to me and I will add it to the repository.
-[*]Install a standalone ffmpeg from https://ffmpeg.org/download.html if you don't have it already.
-[*]If ffmpeg is not in your OS path: configure the path to ffmpeg in the external script postprocess_from_obs.cmd
-[*]Prepare your recording target, e.g. external app, game, capture device.
-[*]In OBS, create the group that will define the section you want in the postprocessed gif/video.
+[*]Download [ICODE]create-animated-gif.lua[/ICODE] and [ICODE]postprocess-from-obs.cmd[/ICODE] from the download link at github and save them to the directory you usually store your *.lua scripts for OBS.
+Currently, only a Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) as ffmpeg wrapper is provided. If you need Linux support, port this very simple batch file to a bash script, send it to me, and I will add it to the repository.
+
+[*]Install a standalone ffmpeg from [url]https://ffmpeg.org/download.html[/url] if you don't have it already. If you download from gyan.dev, the "essentials" build should work fine.
+
+[*]If ffmpeg is not in your OS path: edit [ICODE]postprocess_from_obs.cmd[/ICODE] with a text editor such as Notepad and configure the path to ffmpeg, located at the top of the file.
+
+[*]Start your recording target, e.g. external app, game, capture device.
+
+[*]Start OBS
+
+[*]Create a source that will capture your recording target correctly.
+
+[*]In OBS, create a Group by clicking the plus (+) in the Sources widget. This will designate the section you want in the postprocessed gif/video. Name this group something like "Video frame", so you can remember it.
+
 [*]Move and resize the group, so it designates the section properly.
-[*]In the OBS plugin settings, configure the group as well as the intended gif length, format etc.
-Optional:
-[*]In Setup->Hotkeys, setup the plugin-specific postprocessing hotkey.
+
+[*]Open the OBS script settings with Tools→Scripts and add [ICODE]create-animated-gif.lua[/ICODE] with the plus (+) to the loaded scripts.
+
+[*]In the script settings, first configure the Scene where the created group exists, then the Section (point it to the group).
+
+[*]For Command, configure the path to and including [ICODE]postprocess_from_obs.cmd[/ICODE].
+
+[*]For Output Dir, you can configure your own base output directory for the created gifs/videos.
+
+[*]Configure the other settings accordingly: Start, Length, etc.
+
+[*]In Setup→Hotkeys, assign the script-specific record+postprocessing hotkey.
+(picture)
 [/LIST]
 
-Workflow:
-Start recording, capture action, wait for postprocessing.
-
-1. In the plugin settings, set "Start Offset" to the time that will elapse between recording start and the action you
-   intend to capture actually takes place. It's probably 1 to 10 seconds if you click "Start Recording"
-   and 0 to 1 second if you use the hotkey.
-2. Start recording by clicking "Start Recording" or by using the recording hotkey.
-3. Start action wthin the capture target.
-4. Recording will stop automatically after the defined "Video Length" plus a few more seconds.
-   Then, postprocessing will run automatically.
-
-Check and adjust generated content:
-
-1. check generated gifs or video
-2. to adjust the generated gif or video, adjust the corresponding settings
-   in the plugin settings and press the "Process Again" button.
-3. repeat until satisfied. The "Process Again" button will always process the video that was last captured.
-
+The workflow for using the script is simple:
 [LIST=1]
-[*]aaaaaaaa
-[*]bbbbbbbbb
-[*]cccccccc
+[*]start recording with hotkey (or manually)
+[*]start and capture the action
+[*]wait for postprocessing.
 [/LIST]
-[LIST]
-[*]xxxxxxxxxxx
-[*]yyyyyyyyyyy
-[*]zzzzzzzzzz
-[/LIST]
+
+Before you start working, check the "Start Offset" in the script settings. Set it to the expected delay between recording start and start of the action you want to extract.
+It's probably 1 to 5 seconds if you manually click "Start Recording", and 0 to 1 second if you use the hotkey.
+
+If you start recording with the hotkey or with "Auto Postprocessing Active" enabled, recording will automatically
+stop 10 seconds after the configured video length plus start offset plus 10 seconds safety margin elapsed.
+If you activated "Create additional variations", the recording will stop after at least 30 seconds instead.
+
+If you disabled "Auto Postprocessing Active" and don't use the script specific hotkey for recording start, the script
+is inactive and will neither stop recording automatically nor do any automated postprocessing. This way it will not
+interfere with regular OBS usage. However, you can always click "Process Again" from the script settings to postprocess the last recorded video manually.
+
+After postprocessing took place, check the output. It will be written to the output directory in a subdirectory of its own.
+The directory name is the base name of the recorded video to avoid cluttering the OBS output directory with all the generated and variated output snippets.
+
+If you're not satisfied with the created snippet, adjust start, length and frame rate, then click "Process Again" to
+create a GIF with new settings.
+
+For convenience, activate "Create additional variations". The postprocessing script will create a bunch of files with
+slightly variated length and fps, so you can pick the best length/fps/size ratio. It's especially useful if you want to
+upload a animated gif to a service with a low file size limit.
+
+Even after you recorded a new video or restarted OBS, you can create new snippets from videos recorded earlier.
+Change to the directory where the old postprocessing files are and locate the batch file [ICODE]process_again.cmd[/ICODE]. It was created
+with the current script settings. To create a new snippet, edit the file with a text editor such as Notepad and change
+the parameters accordingly. Then start [ICODE]process_again.cmd[/ICODE] and a new snippet will be created.

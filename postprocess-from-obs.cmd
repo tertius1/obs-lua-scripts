@@ -1,8 +1,13 @@
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
 REM postprocess_from_obs.cmd -- video postprocessing called by OBS
-REM Usage:
-REM   postprocess_from_obs.cmd <video file> <destdir> <xpos> <ypos> <width> <height> <start> <length> <fps>
+
+rem --------------------------------------------------------
+REM If your ffmpeg isn't in the PATH, remove the REM from the
+REM second SET ffmpeg=... line and change the path accordingly.
+SET ffmpeg=ffmpeg.exe
+REM SET ffmpeg=C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe
+rem --------------------------------------------------------
 
     if "%~1"=="" goto :help
     if "%~1"=="process" goto process
@@ -191,7 +196,7 @@ rem build ffmpeg commandline and call it
     for /F "tokens=*" %%f in ("%input%") do set output=%%~nf start=%start% length=%length%%name_fps%%name_a%.%ext%
 
     rem build complete ffmpeg command line
-    set cmd=ffmpeg %opt% -ss %start% -t %length% -i "%input%" %filter% %output_fps% %encodev% %encodea% "%output%"
+    set cmd="%ffmpeg%" %opt% -ss %start% -t %length% -i "%input%" %filter% %output_fps% %encodev% %encodea% "%output%"
 
     >>"%log%" echo ====================================================================
     >>"%log%" echo input=%input%
