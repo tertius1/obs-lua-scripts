@@ -1,3 +1,7 @@
+-- Script: create-animated-gif.lua
+
+-- Create animated gif from your OBS recordings on the fly
+
 description = [[<span>
 Stop recording automatically after given video length, then call postprocessing command with (x, y, width, height) of the selected group.
 For easier handling, use the script hotkey in Settings→Hotkeys.
@@ -27,6 +31,7 @@ postprocess_recording = false
 
 recording_start_time = 0
 my_settings = nil
+my_props = nil
 
 DEBUG = false
 -------------------------------------------------------------------------------
@@ -216,6 +221,28 @@ function run_postprocessing()
 end
 
 
+-- set notice according to hotkey and auto processing
+function set_notice_visibility(props, settings)
+
+    if props == nil then
+        return
+    end
+
+    local active = obs.obs_data_get_bool(settings, "postprocessing_active")
+    local hotkey_configured = is_hotkey_configured()
+
+    local info = obs.obs_properties_get(props, "info1")
+    obs.obs_property_set_visible(info, not active and not hotkey_configured)
+
+    info = obs.obs_properties_get(props, "info2")
+    obs.obs_property_set_visible(info, not active and hotkey_configured)
+
+    info = obs.obs_properties_get(props, "info3")
+    obs.obs_property_set_visible(info, active)
+
+end
+
+
 -------------------------------------------------------------------------------
 -- event handlers
 -------------------------------------------------------------------------------
@@ -339,6 +366,8 @@ function on_scene_modified(props, prop, settings)
     populate_source_list(source_list, scene_name)
     obs.obs_data_set_string(settings, "source", "")
 
+    set_notice_visibility(props, settings)
+
     return true
 end
 
@@ -367,24 +396,15 @@ function on_video_ext_modified(props, prop, settings)
     local colors = obs.obs_properties_get(props, "postprocessing_gif_colors")
     obs.obs_property_set_visible(colors, ext == "gif")
 
+    set_notice_visibility(props, settings)
+
     return true
 end
 
 
--- enable notice, if neither hotkey nor auto postprocessing is set
-function on_active_modified(props, prop, settings)
-
-    local active = obs.obs_data_get_bool(settings, "postprocessing_active")
-
-    local info = obs.obs_properties_get(props, "info1")
-    obs.obs_property_set_visible(info, not active and not is_hotkey_configured())
-
-    info = obs.obs_properties_get(props, "info2")
-    obs.obs_property_set_visible(info, not active and is_hotkey_configured())
-
-    info = obs.obs_properties_get(props, "info3")
-    obs.obs_property_set_visible(info, active)
-
+-- set notice according to hotkey and auto processing
+function on_property_modified(props, prop, settings)
+    set_notice_visibility(props, settings)
     return true
 end
 
@@ -429,12 +449,12 @@ function script_properties()
 
     -- start of postprocessed video
     -- increment for start and length is time for 1 frame
-    local start = obs.obs_properties_add_float_slider(props, "start", "Start Offset", 0, 30, 1/curfps)
+    local start = obs.obs_properties_add_float_slider(props, "start", "Start Offset", 0, 60, 1/curfps)
     obs.obs_property_float_set_suffix(start, " s") -- undocumented API call
     obs.obs_property_set_long_description(start, "\nPostprocessed video starts at this offset (seconds)\n")
 
     -- length of postprocessed video
-    local length = obs.obs_properties_add_float_slider(props, "length", "Video Length", 0, 30, 1/curfps)
+    local length = obs.obs_properties_add_float_slider(props, "length", "Video Length", 0, 60, 1/curfps)
     obs.obs_property_float_set_suffix(length, " s") -- undocumented API call
     obs.obs_property_set_long_description(length, "\nPostprocessed video length (seconds)\n")
 
@@ -497,12 +517,19 @@ function script_properties()
     -- setup callbacks on values modified
     obs.obs_property_set_modified_callback(scene, on_scene_modified)
     obs.obs_property_set_modified_callback(ext, on_video_ext_modified)
-    obs.obs_property_set_modified_callback(active, on_active_modified)
+
+    -- try to keep notice up to date; unfortunately there is no way to trigger a refresh
+    -- on hotkey changes directly.
+    obs.obs_property_set_modified_callback(source, on_property_modified)
+    obs.obs_property_set_modified_callback(fps, on_property_modified)
+    obs.obs_property_set_modified_callback(variations, on_property_modified)
+    obs.obs_property_set_modified_callback(active, on_property_modified)
 
     -- initially set visibility according to stored settings
     on_video_ext_modified(props, ext, my_settings)
-    on_active_modified(props, active, my_settings)
+    set_notice_visibility(props, my_settings)
 
+    my_props = props
     return props
 end
 
@@ -586,6 +613,7 @@ function script_load(settings)
     -- register signal callbacks
     local output = obs.obs_frontend_get_recording_output()
     local sh = obs.obs_output_get_signal_handler(output)
+
     obs.signal_handler_connect(sh, "activate", on_recording_activate)
     obs.signal_handler_connect(sh, "stop", on_recording_stopped)
 
@@ -594,12 +622,15 @@ function script_load(settings)
 end
 
 
--- Called when the script is saved
--- Hotkey configuration has to be saved
+-- Called when OBS configuration is saved
+-- Settings from script properties are saved automatically, but hotkey
+-- configuration has to be saved here.
 function script_save(settings)
     local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
     obs.obs_data_set_array(settings, "create_gif_recording_start.trigger", hotkey_save_array)
     obs.obs_data_array_release(hotkey_save_array)
+
+    set_notice_visibility(my_props, settings)
 end
 
 
