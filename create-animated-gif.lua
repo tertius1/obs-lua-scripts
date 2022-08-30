@@ -117,6 +117,20 @@ function populate_source_list(source_property, scene_name)
 end
 
 
+-- Determine if current recording output is active
+--
+-- Cannot use obs.obs_frontend_recording_active(), because that may return false
+-- but the output is actually still active (after stop command) or already active
+-- (after start command)
+function is_recording_output_active()
+
+    local output = obs.obs_frontend_get_recording_output()
+    local active = obs.obs_output_active(output)
+    obs.obs_output_release(output)
+    return active
+end
+
+
 -- get current recording filename from current recording output
 function get_recording_filename()
 
@@ -169,6 +183,7 @@ function run_postprocessing()
             source_size.y = obs.obs_source_get_height(source)
 
             obs.vec2_mul(size, source_size, info.scale)
+            obs.vec2_addf(size, size, 0.5)
             log.debug("run_postprocessing no bounding box; source_size=(" .. source_size.x .. "," .. source_size.y .. ") * scale=(" .. info.scale.x .. "," .. info.scale.y .. ") => scaled_size=(" .. size.x .. "," .. size.y .. ")")
         else
             size = info.bounds
@@ -210,7 +225,7 @@ function on_recording_timer_elapsed()
 
     obs.remove_current_callback()
 
-    if obs.obs_frontend_recording_active() then
+    if is_recording_output_active() then
         log.info("Stopping recording due to timer that was started " .. ((obs.os_gettime_ns() - recording_start_time)  / 1000 / 1000 / 1000) .. " seconds ago" )
         obs.obs_frontend_recording_stop()
     end
@@ -220,14 +235,8 @@ end
 
 -- restart timer elapsed: if the output has stopped, call the hotkey function to start recording
 function on_try_restart_recording()
---[[
-    local output = obs.obs_frontend_get_recording_output()
-    local active = obs.obs_output_active(output)
-    obs.obs_output_release(output)
 
-    if not active then
-]]
-    if not obs.obs_frontend_recording_active() then
+    if not is_recording_output_active() then
 
         obs.remove_current_callback()
         on_hotkey_start(true)
@@ -244,11 +253,13 @@ function on_hotkey_start(pressed)
         return
     end
 
-    if obs.obs_frontend_recording_active() or postprocess_recording then
+    obs.timer_remove(on_try_restart_recording)
+    obs.timer_remove(on_recording_timer_elapsed)
+
+    if is_recording_output_active() or postprocess_recording then
 
         log.info("Hotkey pressed, but OBS is already recording! Will stop recording and try to restart.")
         postprocess_recording = false
-        obs.timer_remove(on_recording_timer_elapsed)
         obs.obs_frontend_recording_stop()
 
         -- schedule restart in 100 ms
@@ -275,7 +286,7 @@ function on_recording_activate(cd)
 
     if postprocessing_active and not postprocess_recording then
         postprocess_recording = true
-        log.info("Plugin is set to automatic recording stop and postprocessing")
+        log.info("Script is configured to do automatic recording stop and postprocessing")
     end
 
     if postprocess_recording then
@@ -463,7 +474,7 @@ function script_properties()
     obs.obs_property_list_add_int(palette, "16", 16)
     obs.obs_property_list_add_int(palette, "64", 64)
     obs.obs_property_list_add_int(palette, "256", 256)
-    obs.obs_property_set_long_description(palette, "\nSize of _GIF palette; affects final gif size.\n")
+    obs.obs_property_set_long_description(palette, "\nSize of GIF palette; affects final gif size.\n")
 
     -- button "process again"
     local again = obs.obs_properties_add_button(props, "button_again", "Process Again",
@@ -498,7 +509,7 @@ end
 
 -- Return the description shown to the user
 function script_description()
-    return string.format( description, tostring( script_version ) )
+    return string.format(description, tostring(script_version))
 end
 
 
@@ -538,8 +549,6 @@ end
 -- Called to set default settings
 function script_defaults(settings)
 
-    log.debug("script_defaults")
-
     local source = obs.obs_frontend_get_current_scene() -- we get a source actually, not a scene(!)
     local name = obs.obs_source_get_name(source)
     obs.obs_source_release(source)
@@ -568,8 +577,6 @@ end
 -- Called on OBS startup
 function script_load(settings)
 
-    log.debug("script_load")
-
     -- register hotkey(s)
     hotkey_id = obs.obs_hotkey_register_frontend("create_gif_recording_start.trigger", "Start recording for animated GIF", on_hotkey_start)
     local hotkey_save_array = obs.obs_data_get_array(settings, "create_gif_recording_start.trigger")
@@ -590,9 +597,9 @@ end
 -- Called when the script is saved
 -- Hotkey configuration has to be saved
 function script_save(settings)
-	local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
-	obs.obs_data_set_array(settings, "create_gif_recording_start.trigger", hotkey_save_array)
-	obs.obs_data_array_release(hotkey_save_array)
+    local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
+    obs.obs_data_set_array(settings, "create_gif_recording_start.trigger", hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
 end
 
 
@@ -600,38 +607,3 @@ end
 -- Notice: must not call obs.script_log(...) from this callback - OBS crash
 function script_unload(settings)
 end
-
-
---[[
-This plugin will start an external ffmpeg to extract a part of the recorded video and export this as animated gif or
-mp4/webm video snippet.
-
-Preparation:
-1. install a standalone ffmpeg from https://ffmpeg.org/download.html if you don't have it already.
-2. If ffmpeg not in OS path: configure the path to ffmpeg in the external script postprocess-from-obs.cmd
-3. Prepare your recording target, e.g. external app, game, capture device.
-4. In OBS, create the group that will define the section.
-5. Move and resize the group, so it designates the section properly.
-6. In the plugin settings, configure the group as well as the intended gif length, format etc.
-Optional:
-7. In Setup->Hotkeys, setup the plugin-specific postprocessing hotkey.
-
-Workflow:
-Start recording, capture action, wait for postprocessing.
-
-1. In the plugin settings, set "Start Offset" to the time that will elapse between recording start and the action you
-   intend to capture actually takes place. It's probably 1 to 10 seconds if you click "Start Recording"
-   and 0 to 1 second if you use the hotkey.
-2. Start recording by clicking "Start Recording" or by using the recording hotkey.
-3. Start action wthin the capture target.
-4. Recording will stop automatically after the defined "Video Length" plus a few more seconds.
-   Then, postprocessing will run automatically.
-
-Check and adjust generated content:
-
-1. check generated gifs or video
-2. to adjust the generated gif or video, adjust the corresponding settings
-   in the plugin settings and press the "Process Again" button.
-3. repeat until satisfied. The "Process Again" button will always process the video that was last captured.
-
-]]
