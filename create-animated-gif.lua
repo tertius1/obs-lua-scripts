@@ -12,7 +12,10 @@ obs = obslua
 script_version            = "1.00"
 hotkey_id                 = obs.OBS_INVALID_HOTKEY_ID
 
-font_dimmed               = "#b0b020"
+-- if you need longer video snippets than the default 60 seconds, change here.
+default_max_length        = 60
+
+font_notice               = "#b0b020"
 
 scene_name                = ""
 source_name               = ""
@@ -26,18 +29,18 @@ postprocessing_ext        = ""
 postprocessing_gif_colors = 0
 postprocessing_variations = false
 postprocessing_drop_audio = false
-postprocessing_active       = false
-postprocess_recording = false
+postprocessing_active     = false
+postprocess_recording     = false
 
 recording_start_time = 0
 my_settings = nil
 my_props = nil
 
 DEBUG = false
+
 -------------------------------------------------------------------------------
 -- helpers
 -------------------------------------------------------------------------------
-
 log = {
     debug = function(message) if DEBUG then obs.script_log(obs.LOG_DEBUG, "[DEBUG] " .. message) end end,
     info  = function(message) obs.script_log(obs.LOG_INFO, message) end,
@@ -83,7 +86,7 @@ function populate_scene_list(scene_property)
     local scenes = obs.obs_frontend_get_scenes()
     if scenes ~= nil then
 
-        obs.obs_property_list_add_string(scene_property, "", "")
+        obs.obs_property_list_add_string(scene_property, "(Choose Scene)", "")
         for _, scene in ipairs(scenes) do
             local name = obs.obs_source_get_name(scene)
             obs.obs_property_list_add_string(scene_property, name, name)
@@ -100,6 +103,7 @@ function populate_source_list(source_property, scene_name)
 
     log.debug("populate_sources_list begin scene_name='" .. scene_name .. "'")
     obs.obs_property_list_clear(source_property)
+    obs.obs_property_list_add_string(source_property, "(Choose Section)", "")
 
     if scene_name ~= "" then
         local scene = get_scene_by_name(scene_name)
@@ -112,8 +116,9 @@ function populate_source_list(source_property, scene_name)
                 log.debug("populate_sources_list add source name='" .. name .. "' source_id='" .. source_id .. "'")
                 obs.obs_property_list_add_string(source_property, name, name)
             end
+            obs.sceneitem_list_release(scene_items)
         end
-        obs.sceneitem_list_release(scene_items)
+
         obs.obs_scene_release(scene)
     end
 
@@ -224,10 +229,6 @@ end
 -- set notice according to hotkey and auto processing
 function set_notice_visibility(props, settings)
 
-    if props == nil then
-        return
-    end
-
     local active = obs.obs_data_get_bool(settings, "postprocessing_active")
     local hotkey_configured = is_hotkey_configured()
 
@@ -239,6 +240,47 @@ function set_notice_visibility(props, settings)
 
     info = obs.obs_properties_get(props, "info3")
     obs.obs_property_set_visible(info, active)
+
+end
+
+
+-- add a descriptive text property
+function properties_add_info(props, name, label, text)
+
+    local p = obs.obs_properties_add_text(props, name, "<font color=".. font_notice ..">".. label .."</font>", obs.OBS_TEXT_INFO)
+    obs.obs_property_set_long_description(p, "<font color=".. font_notice ..">".. text .."</font>")
+    obs.obs_property_text_set_info_type(p, obs.OBS_TEXT_INFO_NORMAL)
+    return p
+
+end
+
+
+-- update fps, start and length properties with the current fps
+function properties_set_current_fps(props)
+
+    local ovi = obs.obs_video_info()
+    obs.obs_get_video_info(ovi)
+    local curfps = ovi.fps_num / ovi.fps_den
+
+    local fps = obs.obs_properties_get(props, "fps")
+    local entry_description = "Current (" .. string.format((ovi.fps_den == 1 and "%d" or "%.2f"), curfps) .. " fps)"
+    if obs.obs_property_list_item_count(fps) > 0 then
+        obs.obs_property_list_item_remove(fps, 0)
+    end
+    -- it's actually 0 as value, but the descriptive text will contain the current fps
+    obs.obs_property_list_insert_int(fps, 0, entry_description, 0)
+
+    for i = 0, obs.obs_property_list_item_count(fps)-1, 1 do
+        local value = obs.obs_property_list_item_int(fps, i)
+        obs.obs_property_list_item_disable(fps, i, value > curfps)
+    end
+
+    local start = obs.obs_properties_get(props, "start")
+    obs.obs_property_float_set_limits(start, 0,  obs.obs_property_float_max(start), 1/curfps)
+
+    -- length of postprocessed video
+    local length = obs.obs_properties_get(props, "length")
+    obs.obs_property_float_set_limits(length, 0, obs.obs_property_float_max(length), 1/curfps)
 
 end
 
@@ -367,6 +409,7 @@ function on_scene_modified(props, prop, settings)
     obs.obs_data_set_string(settings, "source", "")
 
     set_notice_visibility(props, settings)
+    properties_set_current_fps(props)
 
     return true
 end
@@ -397,6 +440,7 @@ function on_video_ext_modified(props, prop, settings)
     obs.obs_property_set_visible(colors, ext == "gif")
 
     set_notice_visibility(props, settings)
+    properties_set_current_fps(props)
 
     return true
 end
@@ -405,18 +449,10 @@ end
 -- set notice according to hotkey and auto processing
 function on_property_modified(props, prop, settings)
     set_notice_visibility(props, settings)
+    properties_set_current_fps(props)
     return true
 end
 
-
-function properties_add_info(props, name, label, text)
-
-    local p = obs.obs_properties_add_text(props, name, "<font color=".. font_dimmed ..">".. label .."</font>", obs.OBS_TEXT_INFO)
-    obs.obs_property_set_long_description(p, "<font color=".. font_dimmed ..">".. text .."</font>")
-    obs.obs_property_text_set_info_type(p, obs.OBS_TEXT_INFO_NORMAL)
-    return p
-
-end
 
 -------------------------------------------------------------------------------
 -- main script hooks
@@ -427,11 +463,6 @@ end
 function script_properties()
 
     local props = obs.obs_properties_create()
-
-    -- determine current fps for convenience
-    local ovi = obs.obs_video_info()
-    obs.obs_get_video_info(ovi)
-    local curfps = ovi.fps_num / ovi.fps_den
 
     local info1 = properties_add_info(props, "info1", "Passive:", "No Auto Postprocessing and no hotkey (use Process Again)")
     local info2 = properties_add_info(props, "info2", "Hotkey:", "Hotkey set for Auto Postprocessing")
@@ -449,19 +480,18 @@ function script_properties()
 
     -- start of postprocessed video
     -- increment for start and length is time for 1 frame
-    local start = obs.obs_properties_add_float_slider(props, "start", "Start Offset", 0, 60, 1/curfps)
+    local start = obs.obs_properties_add_float_slider(props, "start", "Start Offset", 0, default_max_length, 1)
     obs.obs_property_float_set_suffix(start, " s") -- undocumented API call
     obs.obs_property_set_long_description(start, "\nPostprocessed video starts at this offset (seconds)\n")
 
     -- length of postprocessed video
-    local length = obs.obs_properties_add_float_slider(props, "length", "Video Length", 0, 60, 1/curfps)
+    local length = obs.obs_properties_add_float_slider(props, "length", "Video Length", 0, default_max_length, 1)
     obs.obs_property_float_set_suffix(length, " s") -- undocumented API call
     obs.obs_property_set_long_description(length, "\nPostprocessed video length (seconds)\n")
 
     -- fps of postprocessed video
     local fps = obs.obs_properties_add_list(props, "fps", "Frame Rate", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-    local curfps_text = "Current (" .. string.format((ovi.fps_den == 1 and "%d" or "%.2f"), curfps) .. " fps)"
-    obs.obs_property_list_add_int(fps, curfps_text, 0)
+    obs.obs_property_list_add_int(fps, "Current", 0)
     obs.obs_property_list_add_int(fps, "5", 5)
     obs.obs_property_list_add_int(fps, "10", 10)
     obs.obs_property_list_add_int(fps, "15", 15)
@@ -518,16 +548,15 @@ function script_properties()
     obs.obs_property_set_modified_callback(scene, on_scene_modified)
     obs.obs_property_set_modified_callback(ext, on_video_ext_modified)
 
-    -- try to keep notice up to date; unfortunately there is no way to trigger a refresh
-    -- on hotkey changes directly.
+    -- try to keep the notice up to date; unfortunately there is no way to
+    -- directly trigger a refresh on settings changes in other dialogs
     obs.obs_property_set_modified_callback(source, on_property_modified)
     obs.obs_property_set_modified_callback(fps, on_property_modified)
     obs.obs_property_set_modified_callback(variations, on_property_modified)
     obs.obs_property_set_modified_callback(active, on_property_modified)
 
     -- initially set visibility according to stored settings
-    on_video_ext_modified(props, ext, my_settings)
-    set_notice_visibility(props, my_settings)
+    obs.obs_property_modified(ext, my_settings)
 
     my_props = props
     return props
@@ -630,7 +659,10 @@ function script_save(settings)
     obs.obs_data_set_array(settings, "create_gif_recording_start.trigger", hotkey_save_array)
     obs.obs_data_array_release(hotkey_save_array)
 
-    set_notice_visibility(my_props, settings)
+    if my_props ~= nil then
+        set_notice_visibility(my_props, settings)
+        properties_set_current_fps(my_props)
+    end
 end
 
 
