@@ -4,16 +4,16 @@ If you want to export a small section of your capture area as an animated gif or
 You mark the section with the borders of a group, then start recording with the script hotkey. Recording is stopped automatically a few seconds later and the section will be exported from the recorded video. If you're not satisfied with the export, for example the file size is too large or the beginning is a second too soon, change the script settings in Tools→Scripts and click the "Process again" button.
 Or create a new video and try again.
 We're kind of misusing groups here for just pointing the export script to the section we want to extract. To make real use of the group, you can of course add some kind of watermark source to the group to create some branding for your snippets, but an empty group will suffice.
-In the settings of the script, you can define how long your snippet will be and how many fps it will have, and more. Usually, the created snippets should be small, so you can lower the fps here.
+In the settings of the script, you can define how long your snippet will be and how many fps it will have, and more. Usually, the created snippets should be small, so you lower the fps here.
 
-The export uses a standalone ffmpeg binary, so make sure you get it before you start creating gifs (see installation instructions below). This way the full postprocessing power of ffmpeg can be used. If you need your own ffmpeg settings, look at the [ICODE]postprocess-from-obs.cmd[/ICODE] batchfile and change any settings you want. This script is essentially a wrapper around ffmpeg that converts the parameters from OBS to the corresponding ffmpeg commandline options.
+The export uses a standalone ffmpeg binary, so make sure you get it before you start creating gifs (see installation instructions below). This way the full postprocessing power of all ffmpeg filters can be used. If you need your own ffmpeg settings, look at the [ICODE]postprocess-from-obs.cmd[/ICODE] batchfile and change any settings and ffmpeg commandline arguments you want. This script is essentially a wrapper around ffmpeg that converts the parameters from OBS to the corresponding ffmpeg commandline options.
 
 [HR][/HR]
 
 To use this script:
 [LIST=1]
 [*]Download [ICODE]create-animated-gif.lua[/ICODE] and [ICODE]postprocess-from-obs.cmd[/ICODE] from the download link at github and save them to the directory you usually store your *.lua scripts for OBS.
-Currently, only a Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) as ffmpeg wrapper is provided. If you need Linux support, port this very simple batch file to a bash script, send it to me, and I will add it to the repository.
+Currently, only the Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) as ffmpeg wrapper is provided. If you need Linux support, port this very simple batch file to a bash script, send it to me, and I will add it to the repository.
 
 
 [*]Install a standalone ffmpeg from [url]https://ffmpeg.org/download.html[/url] if you don't have it already. If you download from gyan.dev, the "essentials" build should work fine.
@@ -31,7 +31,7 @@ Currently, only a Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) a
 [*]Create a source that will capture your recording target correctly.
 
 
-[*]In OBS, create a Group by clicking the plus (+) in the Sources widget. This will designate the section you want in the postprocessed gif/video. Name this group something like "Video frame", so you can remember it.
+[*]In OBS, create a Group by clicking the plus (+) in the Sources widget. This will designate the section you want in the postprocessed gif/video. Give this group a meaningful name such as "Video Outline".
 
 
 [*]Move and resize the group, so it designates the section properly.
@@ -45,10 +45,10 @@ Currently, only a Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) a
 
 (picture script options.png)
 
-[*]For Command, configure the path to and including [ICODE]postprocess_from_obs.cmd[/ICODE].
+[*]For Command, configure the path to and including [ICODE]postprocess-from-obs.cmd[/ICODE].
 
 
-[*]For Output Dir, you can configure your own base output directory for the created gifs/videos.
+[*]As Output Dir, you can configure your own base output directory for the created gifs/videos.
 
 
 [*]Configure the other settings accordingly: Start, Length, etc.
@@ -64,9 +64,9 @@ Currently, only a Windows batch file ([ICODE]postprocess-from-obs.cmd[/ICODE]) a
 
 The workflow for using the script is simple:
 [LIST=1]
-[*]start recording with hotkey (or manually)
-[*]start and capture the action
-[*]wait for postprocessing.
+[*]Start recording with hotkey (or manually).
+[*]Perform some action in your capture target.
+[*]Wait for postprocessing.
 [/LIST]
 
 This is an example how OBS itself will look with some group that will designate the section:
@@ -90,16 +90,16 @@ It's probably 1 to 5 seconds if you manually click [i]Start Recording[/i], and 0
 If you start recording with the hotkey or with [i]Auto Postprocessing Active[/i] enabled, recording will automatically stop 10 seconds after the configured video length plus start offset plus 10 seconds safety margin elapsed.
 If you activated [i]Create additional variations[/i], the recording will stop after at least 30 seconds instead.
 
-If you disabled [i]Auto Postprocessing Active[/i] and don't use the script specific hotkey for recording start, the script is inactive and will neither stop recording automatically nor do any automated postprocessing. This way it will not interfere with regular OBS usage. However, you can always click [i]Process Again[/i] from the script settings to postprocess the last recorded video manually.
+If you disabled [i]Auto Postprocessing Active[/i] and don't use the script specific hotkey for recording start, the script is inactive and will neither stop recording automatically nor do any automated postprocessing. This way it will not interfere with regular OBS usage. However, you can always click [i]Process Again[/i] from the script settings to postprocess the last video you recorded manually. The script will watch what you record and always remember the last filename.
 
 [HR][/HR]
 
-After postprocessing took place, check the output. It will be written to the output directory in a subdirectory of its own.
+After postprocessing finished, check the output. It will be written to the output directory in a subdirectory of its own.
 The directory name is the base name of the recorded video to avoid cluttering the OBS output directory with all the generated and variated output snippets.
 
-If you're not satisfied with the created snippet, adjust start, length and frame rate, then click [i]Process Again[/i] to create a GIF with new settings.
+If you're not satisfied with the created snippet, adjust start, length and frame rate, then click [i]Process Again[/i] to create a GIF/video with new settings.
 
-For convenience, activate [i]Create additional variations[/i]. The postprocessing script will create a bunch of files with slightly variated length and fps, so you can pick the best length/fps/size ratio. It's especially useful if you want to upload a animated gif to a service with a low file size limit.
+For convenience, activate [i]Create additional variations[/i]. The postprocessing script will create a bunch of files with slightly variated length and fps, so you can pick the best length/fps/size ratio. It's especially useful if you intend to upload an animated gif to a service with a low file size limit.
 
-Even after you recorded a new video or restarted OBS, you can create new snippets from videos recorded earlier.
-Change to the directory where the old postprocessing files are and locate the batch file [ICODE]process_again.cmd[/ICODE]. It was created with the current script settings. To create a new snippet, edit the file with a text editor such as Notepad and change the parameters accordingly. Then start [ICODE]process_again.cmd[/ICODE] and a new snippet will be created.
+Even after you recorded a new video or restarted OBS, you can create new snippets from videos postprocessed earlier.
+Change to the directory where the old postprocessing files are and locate the batch file [ICODE]process_again.cmd[/ICODE]. It was created with the current script settings. To create a new snippet, edit the file with a text editor such as Notepad and change the parameters accordingly. Then start [ICODE]process_again.cmd[/ICODE] (double click in Windows Explorer) and a new snippet will be created.
