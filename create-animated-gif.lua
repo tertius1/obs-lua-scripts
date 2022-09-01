@@ -114,7 +114,9 @@ function populate_source_list(source_property, scene_name)
                 local name = obs.obs_source_get_name(source)
                 local source_id = obs.obs_source_get_unversioned_id(source) -- source_id is source type like "text_gdiplus", "text_ft2_source" etc.
                 log.debug("populate_sources_list add source name='" .. name .. "' source_id='" .. source_id .. "'")
-                obs.obs_property_list_add_string(source_property, name, name)
+                if string.match(source_id, "wasapi") == nil then
+                    obs.obs_property_list_add_string(source_property, name, name)
+                end
             end
             obs.sceneitem_list_release(scene_items)
         end
