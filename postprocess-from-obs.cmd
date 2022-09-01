@@ -1,18 +1,22 @@
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
-REM postprocess_from_obs.cmd -- video postprocessing called by OBS
+REM postprocess-from-obs.cmd -- video postprocessing called by OBS
 
-rem --------------------------------------------------------
+REM --------------------------------------------------------
 REM If your ffmpeg isn't in the PATH, remove the REM from the
 REM second SET ffmpeg=... line and change the path accordingly.
 SET ffmpeg=ffmpeg.exe
 REM SET ffmpeg=C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe
-rem --------------------------------------------------------
+REM --------------------------------------------------------
+REM If you want a logfile lf ffmpeg processing, activate it here
+SET log=nul
+REM SET log=ffmpeg.log
+REM --------------------------------------------------------
 
     if "%~1"=="" goto :help
-    if "%~1"=="process" goto process
+    if "%~1"=="process" goto :process
 
-    rem read command line
+    REM read command line
     set script=%~f0
 
     set source=%~1
@@ -38,18 +42,18 @@ rem --------------------------------------------------------
     set destdir=%destdir:/=\%
     set outputdir=%destdir%\%~n1
 
-    rem log calls
+    REM log calls
     >>"%destdir%\%~n0.log" echo %*
 
     md "%outputdir%" 1>nul 2>nul
     if not exist "%outputdir%" (
         echo Unable to create output directory "%outputdir%"
-        goto help
+        goto :help
     )
 
     set again=%outputdir%\process_again.cmd
 
-    rem create process_again.cmd in outputdir for manual direct postprocessing
+    REM create process_again.cmd in outputdir for manual direct postprocessing
      >"%again%" echo set source=%source%
     >>"%again%" echo set outputdir=%outputdir%
     >>"%again%" echo set xpos=%xpos%
@@ -71,26 +75,24 @@ goto :eof
 
 
 :help
-    echo postprocess_from_obs.cmd -- video postprocessing called by OBS
+    echo postprocess-from-obs.cmd -- video postprocessing called by OBS
     echo.
     echo Usage:
     echo   postprocess_from_obs.cmd ^<video file^> ^<destdir^> ^<xpos^> ^<ypos^> ^<width^> ^<height^> ^<start^> ^<length^> ^<fps^> ^<video type^> ^<gif colors^> ^<variated length^> ^<audio^>
     echo.
+    pause
 goto :eof
 
 
-rem Do actual processing. Configuration is from environment variables.
+REM Do actual processing. Configuration is from environment variables.
 :process
 
     if "%outputdir%"=="" (
         echo Error: no outputdir given
-        goto help
+        goto :help
     )
 
     cd /d "%outputdir%"
-
-    set log=ffmpeg.log
-    set log=nul
 
     echo outputdir=%outputdir%
 
@@ -109,19 +111,19 @@ rem Do actual processing. Configuration is from environment variables.
 
     del "%log%" 1>nul 2>nul
 
-    rem gif exactly according to given values
+    REM gif exactly according to given values
     call :create_video %start% %length% %fps%
 
     if "%variated%"=="true" (
 
-        rem some fps variants if gif
-        rem  ----------------------------------
+        REM some fps variants
+        REM  ----------------------------------
         call :create_video %start% %length% 5
         call :create_video %start% %length% 10
         call :create_video %start% %length% 20
         call :create_video %start% %length% 30
 
-        rem some more variants if gif
+        REM some more variants
         call :create_video %start%  5 30
         call :create_video %start%  5 20
         call :create_video %start%  5 10
@@ -138,11 +140,11 @@ rem Do actual processing. Configuration is from environment variables.
         call :create_video %start% 24  5
     )
 
-    rem start "" "%outputdir%"
+    REM start "" "%outputdir%"
 exit
 
 
-rem build ffmpeg commandline and call it
+REM build ffmpeg commandline and call it
 :create_video
     setlocal
 
@@ -156,49 +158,46 @@ rem build ffmpeg commandline and call it
 
     set opt=-hide_banner -y
 
-    rem build video encoder option
+    REM build video encoder option
     if "%ext%"=="gif"  set encodev=-loop 0
     if "%ext%"=="mp4"  set encodev=-c:v libx264 -preset slow -profile:v high -crf 25 -movflags +faststart
     if "%ext%"=="webm" set encodev=-c:v libvpx-vp9
 
-    rem build audio encoder option
-    set encodea=
-    set name_a= audio
+    REM build audio encoder option
     if not "%audio%"=="true" (
         set encodea=-an
         set name_a= noaudio
     )
     if "%ext%"=="gif" set name_a=
 
-    rem build crop filter option
-    set crop_pos=%xpos%:%ypos%
-    set crop_size=%width%:%height%
-    set filt_crop=crop=%crop_size%:%crop_pos%
+    REM build crop filter option
+    set filt_crop=crop=%width%:%height%:%xpos%:%ypos%
 
-    rem build palette filter option
-    set filt_palette=
+    REM build palette filter option for gif images
+    REM "dither=none" will produce slight color distortion but avoid dithering pixelation.
+    REM Use "dither=sierra2_4a" for standard ffmpeg dithering.
     if "%ext%"=="gif" set filt_palette=,split[s0][s1];[s0]palettegen=max_colors=%colors%:reserve_transparent=0[p];[s1][p]paletteuse=dither=none:diff_mode=rectangle
 
-    rem build fps input filter and output option (output fps option is separate from the filter fps)
-    set filt_fps=
-    set name_fps=
-    set output_fps=
+    REM build fps input filter option
+    REM don't ask me why setpts=PTS-1 makes the fps filter not produce stutter
     if not "%fps%"=="0" (
-        set filt_fps=fps=%fps%,
+        set filt_fps=,setpts=PTS-1,fps=%fps%:round=down
         set name_fps= fps=%fps%
-        set output_fps=-r %fps%
     )
+    REM for debugging, enable drawing of frame number and frame time
+    REM set filt_text=,drawtext=text=%%{n} %%{pts}:fontsize=12:x=(w-tw)/2: y=h-(2*lh):fontcolor=white:box=1:boxcolor=0x00000099
 
-    rem build complete filter
-    set filter=-vf "%filt_fps%%filt_crop%%filt_palette%"
+    REM build complete filter
+    set filter=-vf "%filt_crop%%filt_text%%filt_fps%%filt_palette%"
 
-    rem build complete output file name
+    REM build complete output file name
     for /F "tokens=*" %%f in ("%input%") do set output=%%~nf start=%start% length=%length%%name_fps%%name_a%.%ext%
 
-    rem build complete ffmpeg command line
-    set cmd="%ffmpeg%" %opt% -ss %start% -t %length% -i "%input%" %filter% %output_fps% %encodev% %encodea% "%output%"
+    REM build complete ffmpeg command line
+    set cmd="%ffmpeg%" %opt% -ss %start% -t %length% -i "%input%" %filter% %encodev% %encodea% "%output%"
 
-    >>"%log%" echo ====================================================================
+    >>"%log%" echo ==============================================================================
+    >>"%log%" echo.
     >>"%log%" echo input=%input%
     >>"%log%" echo output=%output%
     >>"%log%" echo start=%start%
