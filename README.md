@@ -11,5 +11,5 @@
 ## [Requires FFmpeg and FFprobe](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
 
 
-[Thread](https://obsproject.com/forum/resources/animated-gif-creator.1589/
+[Original Thread + Tutorial](https://obsproject.com/forum/resources/animated-gif-creator.1589/
 )
