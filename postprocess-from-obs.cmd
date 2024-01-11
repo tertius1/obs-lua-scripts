@@ -176,7 +176,7 @@ REM build ffmpeg commandline and call it
     REM build palette filter option for gif images
     REM "dither=none" will produce slight color distortion but avoid dithering pixelation.
     REM Use "dither=sierra2_4a" for standard ffmpeg dithering.
-    if "%ext%"=="gif" set filt_palette=,split[s0][s1];[s0]palettegen=max_colors=%colors%:reserve_transparent=0[p];[s1][p]paletteuse=dither=none:diff_mode=rectangle
+    if "%ext%"=="gif" set filt_palette=,split[s0][s1];[s0]palettegen=max_colors=%colors%:reserve_transparent=1[p];[s1][p]paletteuse=dither=none:diff_mode=rectangle:alpha_threshold=128
 
     REM build fps input filter option
     REM don't ask me why setpts=PTS-1 makes the fps filter not produce stutter
