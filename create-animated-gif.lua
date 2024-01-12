@@ -31,12 +31,13 @@ postprocessing_variations = false
 postprocessing_drop_audio = false
 postprocessing_active     = false
 postprocess_recording     = false
-
+use_gif_duration = false
+gif_file_path = ""
 recording_start_time = 0
 my_settings = nil
 my_props = nil
 
-DEBUG = false
+DEBUG = true
 
 -------------------------------------------------------------------------------
 -- helpers
@@ -165,9 +166,8 @@ function get_recording_filename()
 end
 
 
--- perform postprocessing
+-- Modified run_postprocessing function
 function run_postprocessing()
-
     if postprocessing_filename == "" then
         log.warn("Postprocessing requested by user, but no recording video file known")
         return
@@ -201,8 +201,18 @@ function run_postprocessing()
             size = info.bounds
         end
         log.info("Postprocessing uses " .. scene_name .. "." .. source_name .. ": section=(" .. info.pos.x .. "," .. info.pos.y .. "," .. size.x .. "," .. size.y .. ")")
-
+		
+		log.debug("use_gif_duration in run_postprocessing: " .. tostring(use_gif_duration))
         obs.obs_sceneitem_release(scene_item)
+
+
+		if use_gif_duration then
+			-- Use the global gif_file_path variable
+			local gif_duration = get_gif_duration(gif_file_path)
+			if gif_duration then
+				video_length = gif_duration
+			end
+		end
 
         local dir = output_directory ~= "" and output_directory or obs.obs_frontend_get_current_record_output_path()
 
@@ -224,7 +234,6 @@ function run_postprocessing()
     else
         log.warn("Postprocessing unable to find given source '" .. source_name .. "' in scene '" .. scene_name .. "'")
     end
-
 end
 
 
@@ -456,6 +465,22 @@ function on_property_modified(props, prop, settings)
 end
 
 
+function get_gif_duration(gif_path)
+    local tmp_file = os.tmpname()
+    local command = string.format('ffprobe -v error -show_entries "format=duration" -of "default=noprint_wrappers=1:nokey=1" -i "%s" > "%s"', gif_path, tmp_file)
+    os.execute(command)
+
+    local file = io.open(tmp_file, "r")
+    if file then
+        local duration = file:read("*a")
+        file:close()
+        os.remove(tmp_file)
+        return tonumber(duration)
+    end
+    return nil
+end
+
+
 -------------------------------------------------------------------------------
 -- main script hooks
 -------------------------------------------------------------------------------
@@ -546,6 +571,16 @@ function script_properties()
     obs.obs_property_set_long_description(active,
         "\nAutomated recording stop and postprocessing.\nIf deactivated, the hotkey will initiate auto recording stop and processing for one video.\nIf deactivated and no hotkey, stop recording manually and use the Process Again button.\n")
 
+	-- In the script_properties function, set the modified callback for the checkbox
+	local p = obs.obs_properties_add_bool(props, "use_gif_duration", "Use GIF's Own Duration")
+	obs.obs_property_set_modified_callback(p, toggle_gif_path_visibility)
+
+	-- File path input for selecting the GIF
+	local gif_path_prop = obs.obs_properties_add_path(props, "gif_file_path", "GIF File Path", obs.OBS_PATH_FILE,
+		"GIF Files (*.gif)", nil)
+	obs.obs_property_set_visible(gif_path_prop, false) -- Initially hidden
+
+
     -- setup callbacks on values modified
     obs.obs_property_set_modified_callback(scene, on_scene_modified)
     obs.obs_property_set_modified_callback(ext, on_video_ext_modified)
@@ -564,6 +599,20 @@ function script_properties()
     return props
 end
 
+
+function toggle_gif_path_visibility(props, property, settings)
+	local use_gif_duration = obs.obs_data_get_bool(settings, "use_gif_duration")
+
+	-- Toggle visibility for GIF file path
+	local gif_path_prop = obs.obs_properties_get(props, "gif_file_path")
+	obs.obs_property_set_visible(gif_path_prop, use_gif_duration)
+
+	-- Enable or disable the video length slider based on the checkbox
+	local length_prop = obs.obs_properties_get(props, "length")
+	obs.obs_property_set_enabled(length_prop, not use_gif_duration)
+
+	return true
+end
 
 -- Return the description shown to the user
 function script_description()
@@ -586,7 +635,10 @@ function script_update(settings)
     postprocessing_variations = obs.obs_data_get_bool(settings, "postprocessing_variations")
     postprocessing_drop_audio = obs.obs_data_get_bool(settings, "postprocessing_drop_audio")
     postprocessing_active = obs.obs_data_get_bool(settings, "postprocessing_active")
-
+	gif_file_path = obs.obs_data_get_string(settings, "gif_file_path")
+    use_gif_duration = obs.obs_data_get_bool(settings, "use_gif_duration")
+	
+    log.debug("use_gif_duration in script_update: " .. tostring(use_gif_duration))
     log.debug("script_update got scene_name='" .. scene_name .. "'")
     log.debug("script_update got source_name='" .. source_name .. "'")
     log.debug("script_update got video_start=" .. video_start)
